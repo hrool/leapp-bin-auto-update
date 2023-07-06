@@ -1,0 +1,6 @@
+config:
+  alicloud:accessKey:
+    secure: AAABAFwtM1ygzA3y8cnlbjCzqBXmjV7AfPxKN89I3IlHdCS8wuiK99PIoTUo5WLx79EwMXkJOVU=
+  alicloud:region: cn-hongkong
+  alicloud:secretKey:
+    secure: AAABAAfLyPRgVDRYxsNgTup1vgXgRl74G/QN9/V7uwjne/ZkKMozCl2Uh05PuOeD7kkW/iGXC9kfSe3FdMc=

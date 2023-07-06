@@ -1,0 +1,21 @@
+{
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "kms:GetSecretValue"
+            ],
+            "Resource": "acs:kms:*:*:secret/oos/leapp-bin/*"
+        },
+        {
+            "Action": [
+                "oos:GetParameter",
+                "oos:GetSecretParameter",
+                "oos:UpdateParameter"
+            ],
+            "Effect": "Allow",
+            "Resource": "acs:oos:*:*:parameter/leapp-bin/*"
+        }
+    ],
+    "Version": "1"
+}
