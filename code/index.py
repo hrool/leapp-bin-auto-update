@@ -5,7 +5,7 @@ from requests.exceptions import ConnectTimeout, RequestException
 
 logger = logging.getLogger()
 
-def get_latest_version():
+def get_github_latest_version():
   try:
     response = requests.get('https://api.github.com/repos/Noovolari/leapp/releases/latest', timeout=5)
     # Consider any status other than 2xx an error
@@ -20,16 +20,24 @@ def get_latest_version():
     logger.info('Request has timed out')
   except RequestException as e:
     logger.info(f'RequestException occurred: {e}')
-# To enable the initializer feature (https://help.aliyun.com/document_detail/158208.html)
-# please implement the initializer function as below：
-# def initializer(context):
-#   logger = logging.getLogger()
-#   logger.info('initializing')
+
+def get_aur_version_list():
+  pass
+
+def update_aur_package(version):
+  pass
 
 def handler(event, context):
-  release = get_latest_version()
-  if release:
-    logger.info(f'The latest release of leapp is: {release}')
-    return release
+  github_latest_version = get_github_latest_version()
+  if github_latest_version:
+    logger.info(f'The latest github release of leapp is: {github_latest_version}')
   else:
-    logger.info('could not get the right latest release!')
+    raise Exception('could not get the github latest release!')
+  aur_version_list = get_aur_version_list()
+  if not aur_version_list:
+    raise Exception('could not get the aur version list!')
+  if github_latest_version in aur_version_list:
+    logger.info('The latest github release has already synced to aur.')
+  else:
+    update_aur_package(github_latest_version)
+  return True
