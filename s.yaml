@@ -25,7 +25,7 @@ vars: # 全局变量
   region: "cn-hongkong"
   service:
     name: "leapp-bin-auto-update"
-    description: "It's a project to auto update aur package leapp-bin"
+    description: "auto update aur package leapp-bin"
 
 services:
   leapp-bin-auto-update: # 业务名称/模块名称
@@ -48,7 +48,7 @@ services:
       service: ${vars.service}
       function:
         name: "leapp-bin-auto-update"
-        description: "It's a project to auto update aur package leapp-bin"
+        description: "auto update aur package leapp-bin"
         runtime: "python3.9"
         codeUri: ./code
         handler: index.handler
