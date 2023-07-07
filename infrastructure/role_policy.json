@@ -9,13 +9,19 @@
         },
         {
             "Action": [
-                "oos:GetParameter",
-                "oos:GetSecretParameter",
+                "oos:ListParameterVersions",
                 "oos:UpdateParameter"
             ],
             "Effect": "Allow",
             "Resource": "acs:oos:*:*:parameter/leapp-bin/*"
-        }
+        },
+        {
+            "Action": [
+                "oos:GetSecretParameter"
+            ],
+            "Effect": "Allow",
+            "Resource": "acs:oos:*:*:secretparameter/leapp-bin/*"
+        }        
     ],
     "Version": "1"
 }
