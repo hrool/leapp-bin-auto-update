@@ -1,27 +1,23 @@
 {
     "Statement": [
         {
-            "Effect": "Allow",
-            "Action": [
-                "kms:GetSecretValue"
-            ],
-            "Resource": "acs:kms:*:*:secret/oos/leapp-bin/*"
-        },
-        {
             "Action": [
                 "oos:ListParameterVersions",
-                "oos:UpdateParameter"
+                "oos:UpdateParameter",
+                "oos:CreateParameter"
             ],
             "Effect": "Allow",
             "Resource": "acs:oos:*:*:parameter/leapp-bin/*"
         },
         {
-            "Action": [
-                "oos:GetSecretParameter"
-            ],
             "Effect": "Allow",
-            "Resource": "acs:oos:*:*:secretparameter/leapp-bin/*"
-        }        
+            "Action": [
+                "log:PostLogStoreLogs"
+            ],
+            "Resource": [
+                "acs:log:*:*:project/serverless-rool/logstore/leapp-bin-auto-update"
+            ]
+        }
     ],
     "Version": "1"
 }

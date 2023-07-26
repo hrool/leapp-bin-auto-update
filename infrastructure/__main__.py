@@ -15,7 +15,9 @@ role = alicloud.ram.Role(
 with open('role_policy.json', 'r') as f:
     role_policy = f.read()
 policy = alicloud.ram.Policy(
-    "fc-role-policy", 
+    "fc-role-policy",
+    force=True,
+    rotate_strategy='DeleteOldestNonDefaultVersionWhenLimitExceeded',
     policy_name=f"fc-policy-{ pulumi.get_project() }-{ pulumi.get_stack() }",
     policy_document=role_policy,
     description=f"policy for serverless running role, project: { pulumi.get_project() }, stack: { pulumi.get_stack() }"    
