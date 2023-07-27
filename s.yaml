@@ -65,6 +65,8 @@ services:
         layers:
           - acs:fc:${vars.region}:official:layers/Python39-Aliyun-SDK/versions/2
           - acs:fc:cn-hongkong:1632903580111839:layers/alibabacloud_oos20190601/versions/1
+          - acs:fc:cn-hongkong:1632903580111839:layers/GitPython/versions/1
+          - acs:fc:cn-hongkong:1632903580111839:layers/tqdm/versions/1
         asyncConfiguration: # 异步配置
           # destination:
             # onSuccess: acs:fc:{region}:{uid}:services/{serviceName}.{qualifier}/functions/{functionName} # 异步调用成功的目标服务

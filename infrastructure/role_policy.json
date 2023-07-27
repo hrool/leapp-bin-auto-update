@@ -10,6 +10,20 @@
             "Resource": "acs:oos:*:*:parameter/leapp-bin/*"
         },
         {
+            "Action": [
+                "oos:GetSecretParameter"
+            ],
+            "Effect": "Allow",
+            "Resource": "acs:oos:*:*:secretparameter/leapp-bin/*"            
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "kms:GetSecretValue"
+            ],
+            "Resource": "acs:kms:*:*:secret/oos/leapp-bin/*"
+        },             
+        {
             "Effect": "Allow",
             "Action": [
                 "log:PostLogStoreLogs"

@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import os,stat
 import logging
 import requests
 from requests.exceptions import ConnectTimeout, RequestException
@@ -8,8 +9,11 @@ from alibabacloud_tea_openapi import models as open_api_models
 from alibabacloud_oos20190601 import models as oos_20190601_models
 from alibabacloud_tea_util import models as util_models
 
+from git import Repo
+import tqdm
 
 logger = logging.getLogger()
+runtime = util_models.RuntimeOptions()
 
 def get_github_latest_version():
   try:
@@ -30,7 +34,6 @@ def get_aur_version_list(client):
   list_parameter_versions_request = oos_20190601_models.ListParameterVersionsRequest(
     name='leapp-bin/version',
     max_results=100)
-  runtime = util_models.RuntimeOptions()
   try:
     resp = client.list_parameter_versions_with_options(list_parameter_versions_request, runtime)
     if resp.status_code == 200:
@@ -47,10 +50,51 @@ def get_aur_version_list(client):
         raise Exception(error.message)
     else:
       raise Exception(error.message)
-  
+
+def download(url: str, filename: str):
+  with open(filename, 'wb') as f:
+    with requests.get(url, stream=True) as r:
+      r.raise_for_status()
+      total = int(r.headers.get('content-length', 0))
+
+      # tqdm has many interesting parameters. Feel free to experiment!
+      tqdm_params = {
+        'desc': url,
+        'total': total,
+        'miniters': 1,
+        'unit': 'B',
+        'unit_scale': True,
+        'unit_divisor': 1024,
+      }
+      with tqdm.tqdm(**tqdm_params) as pb:
+        for chunk in r.iter_content(chunk_size=8192):
+          pb.update(len(chunk))
+          f.write(chunk)
+
 def update_aur_package(version, client):
+  # get ssh key from oos parameter
+  get_secret_parameter_request = oos_20190601_models.GetSecretParameterRequest(name='leapp-bin/aur-ssh-key', with_decryption=True)
+  try:
+    resp = client.get_secret_parameter_with_options(get_secret_parameter_request, runtime)
+    if resp.status_code == 200:
+      with open('aur-ssh-key', 'w') as f:
+        f.write(resp.body.parameter.value)
+    else:
+      raise Exception('couldS_IRUSR not get right oos parameter leapp-bin/aur-ssh-key!')
+  except Exception as error:
+    raise Exception(error.message)
+  os.chmod('aur-ssh-key', stat.S_IRUSR)
+  # clone git repo from aur
+  ssh_cmd = 'ssh -i aur-ssh-key -o StrictHostKeyChecking=no'
+  repo = Repo.clone_from('ssh://aur@aur.archlinux.org/leapp-bin.git', os.path.join(os.getcwd(), 'leapp-bin'),env=dict(GIT_SSH_COMMAND=ssh_cmd))
+  # download latest version deb file and get the sha512sums
+  file_name = f"Leapp_{version}_amd64.deb"
+  download_url = f"https://asset.noovolari.com/{version}/Leapp_{version}_amd64.deb"
+  download(download_url, file_name)
+  # update files of git
+  # commit and push aur git repo
+  # update oos parameter version
   update_parameter_request = oos_20190601_models.UpdateParameterRequest(name='leapp-bin/version', value=version)
-  runtime = util_models.RuntimeOptions()
   try:
     client.update_parameter_with_options(update_parameter_request, runtime)
     logger.info('aur version updated success!')
