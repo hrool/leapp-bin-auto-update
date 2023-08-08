@@ -11,6 +11,7 @@ from alibabacloud_tea_util import models as util_models
 
 from git import Repo
 import tqdm
+import hashlib
 
 logger = logging.getLogger()
 runtime = util_models.RuntimeOptions()
@@ -91,8 +92,45 @@ def update_aur_package(version, client):
   file_name = f"Leapp_{version}_amd64.deb"
   download_url = f"https://asset.noovolari.com/{version}/Leapp_{version}_amd64.deb"
   download(download_url, file_name)
+  with open(file_name, 'rb') as f:
+    digest = hashlib.file_digest(f, "sha512")
+  file_sha512sums = digest.hexdigest()
   # update files of git
+  # update PKGBUILD
+  with open('leapp-bin/PKGBUILD', 'r') as f:
+    content = f.readlines()
+  for index, line in enumerate(content):
+    if "pkgver=" in line:
+      content[index] = f"pkgver={version}\n"
+    if "pkgrel=" in line:
+      content[index] = f"pkgrel=1\n"
+    if "source=(" in line:
+      content[index] = f"source=({file_name}::https://asset.noovolari.com/{version}/{file_name})\n"
+    if "sha512sums=(" in line:
+      content[index] = f"sha512sums=({file_sha512sums})\n"
+  with open('leapp-bin/PKGBUILD', 'w') as f:
+    f.writelines(content)
+  # update .SRCINFO
+  with open('leapp-bin/.SRCINFO', 'r') as f:
+    content = f.readlines()
+  for index, line in enumerate(content):
+    if "pkgver = " in line:
+      content[index] = f"pkgver = {version}\n"
+    if "pkgrel = " in line:
+      content[index] = f"pkgrel = 1\n"
+    if "source = " in line:
+      content[index] = f"source = {file_name}::https://asset.noovolari.com/{version}/{file_name}\n"
+    if "sha512sums = " in line:
+      content[index] = f"sha512sums = {file_sha512sums}\n"
+  with open('leapp-bin/.SRCINFO', 'w') as f:
+    f.writelines(content)
   # commit and push aur git repo
+  repo.config_writer().set_value("user", "name", "He Qing(robot)").release()
+  repo.config_writer().set_value("user", "email", "qing@he.email").release()
+  repo.index.add('leapp-bin/PKGBUILD')
+  repo.index.add('leapp-bin/.SRCINFO')
+  repo.index.commit(f"update version to {version}")
+  repo.remotes.origin.push().raise_if_error()
   # update oos parameter version
   update_parameter_request = oos_20190601_models.UpdateParameterRequest(name='leapp-bin/version', value=version)
   try:
