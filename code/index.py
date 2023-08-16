@@ -2,6 +2,7 @@
 import os,stat
 import logging
 import requests
+import json
 from requests.exceptions import ConnectTimeout, RequestException
 
 from alibabacloud_oos20190601.client import Client as oos20190601Client
@@ -9,10 +10,14 @@ from alibabacloud_tea_openapi import models as open_api_models
 from alibabacloud_oos20190601 import models as oos_20190601_models
 from alibabacloud_tea_util import models as util_models
 
-from git import Repo
+
 import tqdm
 import hashlib
 
+os.environ['GIT_PYTHON_TRACE']='full'
+from git import Repo
+
+logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger()
 runtime = util_models.RuntimeOptions()
 
@@ -57,7 +62,6 @@ def download(url: str, filename: str):
     with requests.get(url, stream=True) as r:
       r.raise_for_status()
       total = int(r.headers.get('content-length', 0))
-
       # tqdm has many interesting parameters. Feel free to experiment!
       tqdm_params = {
         'desc': url,
@@ -72,8 +76,9 @@ def download(url: str, filename: str):
           pb.update(len(chunk))
           f.write(chunk)
 
-def update_aur_package(version, client):
+def update_aur_package(version, client, test=False):
   # get ssh key from oos parameter
+  logger.info('get the ssh key from oos parameter: leapp-bin/aur-ssh-key')
   get_secret_parameter_request = oos_20190601_models.GetSecretParameterRequest(name='leapp-bin/aur-ssh-key', with_decryption=True)
   try:
     resp = client.get_secret_parameter_with_options(get_secret_parameter_request, runtime)
@@ -84,19 +89,24 @@ def update_aur_package(version, client):
       raise Exception('couldS_IRUSR not get right oos parameter leapp-bin/aur-ssh-key!')
   except Exception as error:
     raise Exception(error.message)
+  logger.info('change aur-ssh-key file permission')
   os.chmod('aur-ssh-key', stat.S_IRUSR)
   # clone git repo from aur
   ssh_cmd = 'ssh -i aur-ssh-key -o StrictHostKeyChecking=no'
-  repo = Repo.clone_from('ssh://aur@aur.archlinux.org/leapp-bin.git', os.path.join(os.getcwd(), 'leapp-bin'),env=dict(GIT_SSH_COMMAND=ssh_cmd))
+  logger.info('git clone from aur.archlinux.org/leapp-bin.git')
+  repo = Repo.clone_from('ssh://aur@aur.archlinux.org/leapp-bin.git', os.path.join(os.getcwd(), 'leapp-bin'), env=dict(GIT_SSH_COMMAND=ssh_cmd))
   # download latest version deb file and get the sha512sums
   file_name = f"Leapp_{version}_amd64.deb"
   download_url = f"https://asset.noovolari.com/{version}/Leapp_{version}_amd64.deb"
+  logger.info(f"download deb file from: {download_url}")
   download(download_url, file_name)
   with open(file_name, 'rb') as f:
     digest = hashlib.file_digest(f, "sha512")
+  logger.info(f"get the sha512 of file: {file_name}")
   file_sha512sums = digest.hexdigest()
   # update files of git
   # update PKGBUILD
+  logger.info('update file PKGBUILD')
   with open('leapp-bin/PKGBUILD', 'r') as f:
     content = f.readlines()
   for index, line in enumerate(content):
@@ -111,6 +121,7 @@ def update_aur_package(version, client):
   with open('leapp-bin/PKGBUILD', 'w') as f:
     f.writelines(content)
   # update .SRCINFO
+  logger.info('update file .SRCINFO')
   with open('leapp-bin/.SRCINFO', 'r') as f:
     content = f.readlines()
   for index, line in enumerate(content):
@@ -125,21 +136,36 @@ def update_aur_package(version, client):
   with open('leapp-bin/.SRCINFO', 'w') as f:
     f.writelines(content)
   # commit and push aur git repo
+  logger.info('config git commit info')  
   repo.config_writer().set_value("user", "name", "He Qing(robot)").release()
   repo.config_writer().set_value("user", "email", "qing@he.email").release()
+  logger.info('git add PKGBUILD .SRCINFO')    
   repo.index.add('leapp-bin/PKGBUILD')
   repo.index.add('leapp-bin/.SRCINFO')
+  logger.info('git commit')
   repo.index.commit(f"update version to {version}")
+  if test:
+    logger.info('test mode, no need to do real push')
+    return None
+  logger.info('git push')  
   repo.remotes.origin.push().raise_if_error()
   # update oos parameter version
   update_parameter_request = oos_20190601_models.UpdateParameterRequest(name='leapp-bin/version', value=version)
   try:
+    logger.info('update oos parameter: leapp-bin/version')
     client.update_parameter_with_options(update_parameter_request, runtime)
     logger.info('aur version updated success!')
   except Exception as error:
     raise Exception(error.message)
 
 def handler(event, context):
+  test=False
+  try:
+    evt = json.loads(event)
+    if "test" in evt:
+      test=True
+  except:
+    pass
   github_latest_version = get_github_latest_version()
   if github_latest_version:
     logger.info(f'The latest github release of leapp is: {github_latest_version}')
@@ -160,6 +186,5 @@ def handler(event, context):
   if github_latest_version in aur_version_list:
     logger.info('The latest github release has already synced to aur.')
     return True
-  else:
-    logger.info(f'aur version should be updated to {github_latest_version}')
-    update_aur_package(github_latest_version, client)
+  logger.info(f'aur version should be updated to {github_latest_version}')
+  update_aur_package(github_latest_version, client)
